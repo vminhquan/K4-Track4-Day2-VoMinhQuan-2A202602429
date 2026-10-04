@@ -67,8 +67,20 @@ def center(x, s=224):
     return x[..., o:o + s, o:o + s]
 
 
+def model_for_res(model, size: int):
+    """Mô hình chạy được ở độ phân giải `size`. CNN có global pooling: dùng nguyên. ViT/DeiT/Swin (timm) cố định
+    224 nên tạo bản sao rồi gọi set_input_size (nội suy position embedding / dựng lại cửa sổ attention)."""
+    if size == 224 or not hasattr(model, "set_input_size") or \
+            getattr(getattr(model, "patch_embed", None), "img_size", None) is None:
+        return model
+    m = copy.deepcopy(model)
+    m.set_input_size(img_size=(size, size))
+    return m.eval()
+
+
 def spec_logits(model, df, images_dir, device, spec, workers=4):
     """Logit theo từng view của một đặc tả SPECS -> (filenames, y, list[logits]). Dùng cho val và test."""
+    model = model_for_res(model, spec["res"])
     if spec["views"] == "resize":
         ld = ds.make_loader(df, images_dir, ds.build_transforms(False, spec["res"]), 64, False, None, workers)
         f, y, l = inf.predict_logits(model, ld, device)
@@ -134,7 +146,8 @@ def main():
     src = Path(run_main).parent.name
 
     def lat(m, k=1, size=224, dtype="fp32", fused=False):
-        return bm.latency_report(m, 1, size, dtype, dev, iters=args.iters, n_views=k, fused_bn=fused)
+        return bm.latency_report(model_for_res(m, size), 1, size, dtype, dev, iters=args.iters, n_views=k,
+                                 fused_bn=fused)
 
     def add(eid, method, K, probs, y, latency=None, note="", models=src):
         r = {"exp_id": eid, "method": method, "model": models, "K": K, **metrics(y, probs), "note": note}
@@ -231,7 +244,8 @@ def main():
         add("I06", f"Greedy soup {len(ingredients)} checkpoint", 1, best_p, y, lat(best_sm),
             models="+".join(Path(p).parent.name for p in ingredients),
             note="thứ tự thử: " + ", ".join(log) + " (BN stats trung bình cùng trọng số)")
-        best_sm.cpu()
+        if best_sm is not model:  # không có checkpoint nào được thêm thì best_sm chính là model gốc: giữ trên GPU
+            best_sm.cpu()
 
     # ---- I07: temperature scaling: T khớp trên val; ECE báo cáo bằng 2-fold chéo trên val ----
     def ts_crossfit(logits):

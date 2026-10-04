@@ -27,7 +27,7 @@ import benchmark as bm  # noqa: E402
 import dataset as ds  # noqa: E402
 import inference as inf  # noqa: E402
 from experiments import BASE, BASELINE_SEEDS  # noqa: E402
-from step3_inference import SPECS, load_run, spec_logits  # noqa: E402
+from step3_inference import SPECS, load_run, model_for_res, spec_logits  # noqa: E402
 from train import REPO_ROOT, Config, get_device, run, run_dir  # noqa: E402
 
 sys.path.insert(0, str(REPO_ROOT))
@@ -117,7 +117,7 @@ def main():
     # 3) độ trễ đúng cách của cấu hình chung kết và cấu hình thời gian thực (batch 1)
     model, _ = load_run("runs/F01/seed0", device)
     dev = str(device)
-    lat_final = bm.latency_report(model, 1, spec["res"], "fp32", dev, iters=200, n_views=spec["K"])
+    lat_final = bm.latency_report(model_for_res(model, spec["res"]), 1, spec["res"], "fp32", dev, iters=200, n_views=spec["K"])
     lat_rt = bm.latency_report(model, 1, 224, "fp32", dev, iters=200)
     out["latency_final"], out["latency_rt"] = lat_final, lat_rt
     print("latency final", lat_final, "\nlatency rt", lat_rt)
