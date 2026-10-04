@@ -394,7 +394,7 @@ def run(cfg: Config) -> dict:
             ema.updates = st["ema_updates"]
         if scaler is not None and st.get("scaler"):
             scaler.load_state_dict(st["scaler"])
-        torch.set_rng_state(st["rng_cpu"])
+        torch.set_rng_state(st["rng_cpu"].cpu())  # map_location=cuda đã chuyển cả RNG state lên GPU
         history, all_lrs = st["history"], st["lrs"]
         best_f1, best_epoch, prev_time = st["best_f1"], st["best_epoch"], st["elapsed"]
         start_epoch = history[-1]["epoch"] + 1 if history else 1
