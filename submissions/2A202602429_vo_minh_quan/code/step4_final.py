@@ -89,6 +89,12 @@ def main():
     if args.preload:
         ds.preload_images(list(val_df.Filename) + list(test_df.Filename), images_dir)
     for s in SEEDS:
+        done = Path(f"runs/F01/seed{s}/final_seed.json")
+        if done.exists() and Path(f"predictions/F01_seed{s}_test.csv").exists():
+            # test của seed này đã chạy: KHÔNG chạy lại (quy tắc: test một lần mỗi seed)
+            out["per_seed"].append(json.loads(done.read_text()))
+            print(f"seed {s}: test đã chạy trước đó, dùng lại kết quả đã lưu")
+            continue
         model, rec = load_run(f"runs/F01/seed{s}", device)
         fv, yv, Lv = spec_logits(model, val_df, images_dir, device, spec, args.workers)
         yv = np.asarray(yv)
@@ -111,6 +117,7 @@ def main():
         mv = compute_metrics(yv, pv.argmax(1), pv)
         out["per_seed"].append({"seed": s, "T": T, "T_rt": T_rt, "val_macro_f1": mv["macro_f1"],
                                 "val_top1": mv["top1"], "val_ece": mv["ece"]})
+        done.write_text(json.dumps(out["per_seed"][-1], default=float))
         print(out["per_seed"][-1], flush=True)
         model.cpu()
 

@@ -108,7 +108,9 @@ def _slug(ov: dict) -> str:
     return "-".join(f"{k}{v}" for k, v in ov.items()).replace(".", "p").replace("_", "")[:40]
 
 
-def run_all(cfgs: list[Config], preload: bool) -> None:
+def run_all(cfgs: list[Config], preload: bool) -> list[str]:
+    """Chạy tuần tự; lỗi ở một lần chạy không dừng các lần sau. Trả về danh sách lần chạy bị lỗi."""
+    failed = []
     for cfg in cfgs:
         cfg.preload = preload
         if (run_dir(cfg) / "summary.json").exists():
@@ -120,6 +122,8 @@ def run_all(cfgs: list[Config], preload: bool) -> None:
         except Exception:
             traceback.print_exc()
             print(f"LỖI ở {cfg.exp_id} seed{cfg.seed}, chạy tiếp thí nghiệm sau", flush=True)
+            failed.append(f"{cfg.exp_id} seed{cfg.seed}")
+    return failed
 
 
 # --------------------------------------------------------------------------- quy tắc chọn (chỉ val)
@@ -265,7 +269,9 @@ def main():
     if args.group == "C" and not load_sel().get("combos") and not args.select_combos:
         select_combos()
     if args.group:
-        run_all(configs(args.group, args.only), args.preload)
+        failed = run_all(configs(args.group, args.only), args.preload)
+        if failed:  # mã thoát khác 0 để notebook dừng lại thay vì đi tiếp với kết quả thiếu
+            raise SystemExit(f"Các lần chạy bị lỗi: {failed}. Sửa lỗi rồi chạy lại (lần đã xong sẽ được bỏ qua).")
     if args.select_recipe:
         select_recipe()
 
