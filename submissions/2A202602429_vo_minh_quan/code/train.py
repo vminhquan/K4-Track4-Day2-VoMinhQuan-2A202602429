@@ -17,6 +17,7 @@ import platform
 import random
 import sys
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -230,7 +231,12 @@ def train_one_epoch(model, loader, criterion, optimizer, scheduler, scaler, cfg:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
             optimizer.step()
         lrs.append(optimizer.param_groups[0]["lr"])
-        scheduler.step()
+        # Lịch LR bám theo số bước (iteration), kể cả bước mà GradScaler bỏ qua optimizer.step() vì gradient
+        # tràn số (vài bước đầu khi bật AMP). PyTorch cảnh báo "lr_scheduler.step() before optimizer.step()"
+        # trong trường hợp này; đó là hành vi cố ý nên tắt cảnh báo, không đổi cách tính LR.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=r"Detected call of `lr_scheduler\.step\(\)`")
+            scheduler.step()
         if ema is not None:
             ema.update(model)
         n = y.size(0)
