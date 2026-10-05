@@ -93,8 +93,8 @@
     "model": "resnet50.a1_in1k"
   },
   "overfit_16": {
-    "loss_first": 2.2318766117095947,
-    "loss_last": 0.017748231068253517,
+    "loss_first": 2.231876850128174,
+    "loss_last": 0.017590928822755814,
     "train_acc_eval_mode": 1.0,
     "steps": 150
   }
